@@ -27,7 +27,7 @@ struct ContentView: View {
                         
                         
                         Button(action: {
-                                mpcManager.setPeerId(displayName)
+                                mpcManager.setDisplayName(displayName)
                                 mpcManager.setupServices()
                             
                         }) {
@@ -267,4 +267,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(MPCManager())
 }

@@ -6,12 +6,12 @@
 //
 
 import Foundation
+import SwiftUI
 import MultipeerConnectivity
 
 // MARK: - Updated MPCManager with ObservableObject properties
 class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate, MCNearbyServiceBrowserDelegate, ObservableObject {
     let serviceType = "beatyourfriend"  // Changed: lowercase, no special characters
-    
     var peerID = MCPeerID(displayName:UIDevice.current.name)
     
     var session: MCSession!
@@ -26,18 +26,25 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     @Published var isAdvertising: Bool = false
     @Published var isBrowsing: Bool = false
     
+    @Published var showInvitationPrompt: Bool = false
+    @Published var pendingInvitation: (peerID: MCPeerID, handler: (Bool, MCSession?) -> Void)?
+
+    
     override init() {
         super.init()
-        
-        
     }
     
-    func setPeerId(_ displayName: String) {
+    func setDisplayName(_ displayName: String) {
         self.peerID = MCPeerID(displayName: displayName)
     }
     
     func setupServices() {
-        print(peerID.displayName)
+        
+        // For session
+        session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .optional)
+        session.delegate = self
+        
+        
         // For advertiser
         advertiser = MCNearbyServiceAdvertiser(peer: peerID, discoveryInfo: nil, serviceType: serviceType)
         advertiser.delegate = self
@@ -45,28 +52,31 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         // For Browser
         browser = MCNearbyServiceBrowser(peer: peerID, serviceType: serviceType)
         browser.delegate = self
-        
-        startServices()
     }
-    
-    func startServices() {
+        
+    func startAllServices() {
         stopServices() // Stop any existing services first
         
         
-        // For session
-        session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .optional)
-        session.delegate = self
-
-        
         // Start advertising
-        advertiser.startAdvertisingPeer()
-        isAdvertising = true
-        print("Started advertising with service type: \(serviceType)")
+        startAdvertising()
         
         // Start browsing
+        startBrowsing()
+    }
+    
+    
+    func startBrowsing() {
         browser.startBrowsingForPeers()
         isBrowsing = true
         print("Started browsing for peers with service type: \(serviceType)")
+    }
+    
+    
+    func startAdvertising() {
+        advertiser.startAdvertisingPeer()
+        isAdvertising = true
+        print("Started advertising with service type: \(serviceType)")
     }
     
     func stopServices() {
@@ -86,7 +96,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     func restartServices() {
         stopServices()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.startServices()
+            self.startAllServices()
         }
     }
     
@@ -140,7 +150,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         DispatchQueue.main.async {
             print("招待を受けました from \(peerID.displayName)")
             // Auto-accept invitations for this demo
-            invitationHandler(true, self.session)
+            self.pendingInvitation = (peerID, invitationHandler)
+            self.showInvitationPrompt = true
         }
     }
     
@@ -156,7 +167,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String : String]?) {
         DispatchQueue.main.async {
             print("Found peer: \(peerID.displayName)")
-            if !self.availablePeers.contains(peerID) {
+            if !self.availablePeers.contains(peerID) && peerID != self.peerID {
                 self.availablePeers.append(peerID)
             }
         }
@@ -179,6 +190,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     
     // MARK: - Helper Methods
     func invitePeer(_ peerID: MCPeerID) {
+        print("招待を送信するため、接続中のデバイスと切断する")
+        disconnect()
         print("招待を送信する to \(peerID.displayName)")
         browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
     }

@@ -9,9 +9,16 @@ import SwiftUI
 
 @main
 struct Beat_your_FriendApp: App {
+    @StateObject private var mpcManager: MPCManager = .init()
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NavigationView {
+                GlobalInvitationAlertView {
+                    HomeScreen()
+                        .environmentObject(mpcManager)
+                }
+                .environmentObject(mpcManager)
+            }
         }
     }
 }
