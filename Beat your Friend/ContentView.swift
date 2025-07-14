@@ -27,8 +27,8 @@ struct ContentView: View {
                         
                         
                         Button(action: {
-                                mpcManager.setDisplayName(displayName)
-                                mpcManager.setupServices()
+//                                mpcManager.setDisplayName(displayName)
+//                                mpcManager.setupServices()
                             
                         }) {
                             Text("Set DisplayName")
@@ -69,7 +69,7 @@ struct ContentView: View {
                         }
                         
                         Button(action: {
-                            mpcManager.restartServices()
+//                            mpcManager.restartServices()
                         }) {
                             Text("Restart Services")
                                 .font(.caption)

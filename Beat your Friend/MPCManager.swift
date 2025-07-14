@@ -38,8 +38,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         self.peerID = MCPeerID(displayName: displayName)
     }
     
-    func setupServices() {
-        
+    private func setupServices() {
         // For session
         session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .optional)
         session.delegate = self
@@ -55,9 +54,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     }
         
     func startAllServices() {
-        stopServices() // Stop any existing services first
-        
-        
+        restartServices()
+                
         // Start advertising
         startAdvertising()
         
@@ -79,7 +77,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         print("Started advertising with service type: \(serviceType)")
     }
     
-    func stopServices() {
+    private func stopServices() {
+        
         if isAdvertising {
             advertiser.stopAdvertisingPeer()
             isAdvertising = false
@@ -91,13 +90,17 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
             isBrowsing = false
             print("Stopped browsing")
         }
+        
+        if let session {
+            session.disconnect()
+        }
     }
     
-    func restartServices() {
-        stopServices()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.startAllServices()
-        }
+    private func restartServices() {
+        stopServices() // Stop any existing services first
+        
+        self.setupServices()
+
     }
     
     // MARK: - MCSessionDelegate

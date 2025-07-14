@@ -15,136 +15,138 @@ struct HomeScreen: View {
     @State private var tempName: String = ""
     
     var body: some View {
-        ZStack {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 30) {
-                // Game Logo/Title Section
-                VStack(spacing: 10) {
-                    Image(systemName: "gamecontroller.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
-                    
-                    Text("殴りましょう")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-                }
-                .padding(.top, 40)
+       NavigationView {
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
-                // Welcome Section
-                VStack(spacing: 15) {
-                    if displayName.isEmpty {
-                        VStack(spacing: 10) {
-                            Text("ゲームへようこそ！")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                            
-                            Text("始める前に名前を設定してください")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                    } else {
-                        VStack(spacing: 10) {
-                            Text("おかえりなさい！")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                            
-                            Text("\(displayName)さん")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                
-                // Action Buttons
-                VStack(spacing: 15) {
-                    if displayName.isEmpty {
-                        Button(action: {
-                            showNameInputAlert = true
-                        }) {
-                            HStack {
-                                Image(systemName: "person.fill")
-                                Text("名前を設定")
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue)
-                            .cornerRadius(12)
-                        }
-                    } else {
-                        
-                        NavigationLink {
-                            BrowsingView()
-                                .environmentObject(mpcManager)
-                        } label: {
-                            HStack {
-                                Image(systemName: "play.fill")
-                                Text("近くのプレイヤーを検索")
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.green)
-                            .cornerRadius(12)
-                        }
-                        
-                        
-                        Button(action: {
-                            showNameInputAlert = true
-                        }) {
-                            HStack {
-                                Image(systemName: "pencil")
-                                Text("名前を変更")
-                            }
-                            .font(.subheadline)
+                VStack(spacing: 30) {
+                    // Game Logo/Title Section
+                    VStack(spacing: 10) {
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: 60))
                             .foregroundColor(.blue)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 16)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(8)
+                        
+                        Text("殴りましょう")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.top, 40)
+                    
+                    // Welcome Section
+                    VStack(spacing: 15) {
+                        if displayName.isEmpty {
+                            VStack(spacing: 10) {
+                                Text("ゲームへようこそ！")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                
+                                Text("始める前に名前を設定してください")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                        } else {
+                            VStack(spacing: 10) {
+                                Text("おかえりなさい！")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                
+                                Text("\(displayName)さん")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.blue)
+                            }
                         }
                     }
+                    .padding(.horizontal, 20)
+                    
+                    // Action Buttons
+                    VStack(spacing: 15) {
+                        if displayName.isEmpty {
+                            Button(action: {
+                                showNameInputAlert = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "person.fill")
+                                    Text("名前を設定")
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color.blue)
+                                .cornerRadius(12)
+                            }
+                        } else {
+                            
+                            NavigationLink {
+                                BrowsingView()
+                                    .environmentObject(mpcManager)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "play.fill")
+                                    Text("近くのプレイヤーを検索")
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color.green)
+                                .cornerRadius(12)
+                            }
+                            
+                            
+                            Button(action: {
+                                showNameInputAlert = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "pencil")
+                                    Text("名前を変更")
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 16)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 30)
+                    
+                    Spacer()
+                    
+                    // Footer
+                    Text("楽しいゲーム体験をお楽しみください！")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 20)
                 }
-                .padding(.horizontal, 30)
                 
-                Spacer()
                 
-                // Footer
-                Text("楽しいゲーム体験をお楽しみください！")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.bottom, 20)
+                if showNameInputAlert {
+                    nameInputView
+                }
             }
-            
-            
-            if showNameInputAlert {
-                nameInputView
+            .navigationTitle(mpcManager.connectionState.description)
+            .onAppear {
+                if displayName.isEmpty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showNameInputAlert = true
+                    }
+                } else {
+                    mpcManager.setDisplayName(displayName)
+                }
             }
         }
-        .navigationTitle(mpcManager.connectionState.description)
-        .onAppear {
-            if displayName.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showNameInputAlert = true
-                }
-            } else {
-                mpcManager.setDisplayName(displayName)
-            }
-        }
-        
+
     }
     
     @ViewBuilder
@@ -176,7 +178,6 @@ struct HomeScreen: View {
                         displayName = tempName.trimmingCharacters(in: .whitespacesAndNewlines)
                         tempName = ""
                         mpcManager.setDisplayName(displayName)
-                        mpcManager.setupServices()
                         showNameInputAlert.toggle()
                     }
                 } label: {
@@ -184,15 +185,15 @@ struct HomeScreen: View {
                         .font(.headline)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(.blue)
+                        .background(tempName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : .blue)
                         .foregroundStyle(.white)
-                        .cornerRadius(10)
+                        .cornerRadius(70)
                         .padding(.leading)
                 }
                 .disabled(tempName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 
             }
-            .padding(.vertical)
+            .padding(.vertical, 10)
             
         }
         .padding(30)
@@ -200,8 +201,9 @@ struct HomeScreen: View {
         .frame(height: 200)
         .background(.white)
         .cornerRadius(30)
-        .shadow(color: .gray, radius: 5, x: 0, y: -10)
+        .shadow(color: .gray.opacity(0.4), radius: 5, x: 0, y: -10)
         .padding(.horizontal, 50)
+        .padding(.vertical)
     }
 }
 

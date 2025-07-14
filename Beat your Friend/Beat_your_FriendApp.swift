@@ -14,7 +14,7 @@ struct Beat_your_FriendApp: App {
         WindowGroup {
             NavigationView {
                 GlobalInvitationAlertView {
-                    HomeScreen()
+                    MainTabView()
                         .environmentObject(mpcManager)
                 }
                 .environmentObject(mpcManager)
