@@ -44,7 +44,7 @@ struct ContentView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                         
-                        Text(mpcManager.connectionState)
+                        Text(mpcManager.connectionStatus)
                             .font(.subheadline)
                             .foregroundColor(mpcManager.connectedPeers.isEmpty ? .red : .green)
                             .padding(.horizontal, 12)

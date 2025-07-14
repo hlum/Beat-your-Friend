@@ -9,6 +9,13 @@ import Foundation
 import SwiftUI
 import MultipeerConnectivity
 
+enum ConnectionState {
+    case connected
+    case connecting
+    case notConnected
+    case unknown
+}
+
 // MARK: - Updated MPCManager with ObservableObject properties
 class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate, MCNearbyServiceBrowserDelegate, ObservableObject {
     let serviceType = "beatyourfriend"  // Changed: lowercase, no special characters
@@ -22,7 +29,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     @Published var connectedPeers: [MCPeerID] = []
     @Published var availablePeers: [MCPeerID] = []
     @Published var receivedMessages: [String] = []
-    @Published var connectionState: String = "Disconnected"
+    @Published var connectionStatus: String = "Disconnected"
+    @Published var connectionState: ConnectionState = .notConnected
     @Published var isAdvertising: Bool = false
     @Published var isBrowsing: Bool = false
     
@@ -109,24 +117,30 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
             switch state {
             case .connected:
                 print("✅ Connected to \(peerID.displayName)")
-                self.connectionState = "Connected to \(peerID.displayName)"
+                self.connectionStatus = "Connected to \(peerID.displayName)"
+                self.connectionState = .connected
+
                 if !self.connectedPeers.contains(peerID) {
                     self.connectedPeers.append(peerID)
                 }
             case .connecting:
                 print("🔄 Connecting to \(peerID.displayName)")
-                self.connectionState = "Connecting to \(peerID.displayName)"
+                self.connectionStatus = "Connecting to \(peerID.displayName)"
+                self.connectionState = .connecting
             case .notConnected:
                 print("❌ Disconnected from \(peerID.displayName)")
-                self.connectionState = "Disconnected"
+                self.connectionStatus = "Disconnected"
+                self.connectionState = .notConnected
                 self.connectedPeers.removeAll { $0 == peerID }
             @unknown default:
                 print("❓ Unknown state for \(peerID.displayName)")
-                self.connectionState = "Unknown state"
+                self.connectionState = .unknown
+                self.connectionStatus = "Unknown state"
             }
+            
         }
     }
-    
+
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         DispatchQueue.main.async {
             if let message = String(data: data, encoding: .utf8) {
@@ -161,7 +175,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: Error) {
         DispatchQueue.main.async {
             print("Failed to start advertising: \(error.localizedDescription)")
-            self.connectionState = "Advertising failed: \(error.localizedDescription)"
+            self.connectionStatus = "Advertising failed: \(error.localizedDescription)"
             self.isAdvertising = false
         }
     }
@@ -186,7 +200,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     func browser(_ browser: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: Error) {
         DispatchQueue.main.async {
             print("Failed to start browsing: \(error.localizedDescription)")
-            self.connectionState = "Browsing failed: \(error.localizedDescription)"
+            self.connectionStatus = "Browsing failed: \(error.localizedDescription)"
             self.isBrowsing = false
         }
     }
@@ -210,6 +224,6 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     func disconnect() {
         session.disconnect()
         connectedPeers.removeAll()
-        connectionState = "Disconnected"
+        connectionStatus = "Disconnected"
     }
 }

@@ -87,20 +87,20 @@ struct HomeScreen: View {
                         } else {
                             
                             NavigationLink {
-                                BrowsingView()
-                                    .environmentObject(mpcManager)
+                                
                             } label: {
                                 HStack {
                                     Image(systemName: "play.fill")
-                                    Text("近くのプレイヤーを検索")
+                                    Text("ゲーム開始")
                                 }
                                 .font(.headline)
                                 .foregroundColor(.white)
                                 .padding()
                                 .frame(maxWidth: .infinity)
-                                .background(Color.green)
+                                .background(mpcManager.connectionState == .connected ? .green : .gray)
                                 .cornerRadius(12)
                             }
+                            .disabled(mpcManager.connectionState != .connected)
                             
                             
                             Button(action: {
@@ -135,7 +135,7 @@ struct HomeScreen: View {
                     nameInputView
                 }
             }
-            .navigationTitle(mpcManager.connectionState.description)
+            .navigationTitle(mpcManager.connectionStatus.description)
             .onAppear {
                 if displayName.isEmpty {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
