@@ -36,6 +36,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     
     @Published var showInvitationPrompt: Bool = false
     @Published var pendingInvitation: (peerID: MCPeerID, handler: (Bool, MCSession?) -> Void)?
+    
+    @Published var enemyPunchDirection: PunchDirection? = .up(strength: 1000)
 
     
     override init() {

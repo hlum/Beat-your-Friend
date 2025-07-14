@@ -87,7 +87,8 @@ struct HomeScreen: View {
                         } else {
                             
                             NavigationLink {
-                                
+                                GameScreen()
+                                    .environmentObject(mpcManager)
                             } label: {
                                 HStack {
                                     Image(systemName: "play.fill")
