@@ -9,7 +9,7 @@ import SwiftUI
 
 struct HomeScreen: View {
     @EnvironmentObject private var mpcManager: MPCManager
-    
+    @State private var showGameScreen: Bool = false
     @AppStorage("DisplayName") private var displayName = ""
     @State private var showNameInputAlert: Bool = false
     @State private var tempName: String = ""
@@ -86,9 +86,8 @@ struct HomeScreen: View {
                             }
                         } else {
                             
-                            NavigationLink {
-                                GameScreen()
-                                    .environmentObject(mpcManager)
+                            Button {
+                                showGameScreen.toggle()
                             } label: {
                                 HStack {
                                     Image(systemName: "play.fill")
@@ -143,6 +142,10 @@ struct HomeScreen: View {
                         showNameInputAlert = true
                     }
                 }
+            }
+            .fullScreenCover(isPresented: $showGameScreen) {
+                GameScreen()
+                    .environmentObject(mpcManager)
             }
         }
 

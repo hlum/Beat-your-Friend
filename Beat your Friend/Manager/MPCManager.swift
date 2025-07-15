@@ -31,8 +31,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     @Published var showInvitationPrompt: Bool = false
     @Published var pendingInvitation: (peerID: MCPeerID, handler: (Bool, MCSession?) -> Void)?
     
-    @Published var enemyPunchDirection: PunchDirection? =  .right(strength: 100)
-    
+    @Published var enemyPunchDirection: PunchDirection?    
     override init() {
         super.init()
     }
@@ -266,6 +265,15 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         } catch {
             print("Failed to decode: \(error)")
             return nil
+        }
+    }
+}
+
+
+extension MPCManager {
+    func clearEnemyPunch() {
+        DispatchQueue.main.async {
+            self.enemyPunchDirection = nil
         }
     }
 }
