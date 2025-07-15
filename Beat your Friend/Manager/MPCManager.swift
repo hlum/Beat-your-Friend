@@ -9,12 +9,6 @@ import Foundation
 import SwiftUI
 import MultipeerConnectivity
 
-enum ConnectionState {
-    case connected
-    case connecting
-    case notConnected
-    case unknown
-}
 
 // MARK: - Updated MPCManager with ObservableObject properties
 class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate, MCNearbyServiceBrowserDelegate, ObservableObject {
