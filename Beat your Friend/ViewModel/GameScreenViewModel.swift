@@ -5,6 +5,11 @@
 //  Created by cmStudent on 2025/07/15.
 //
 
+import Foundation
+import CoreMotion
+import Combine
+import SwiftUI
+
 
 class GameScreenViewModel: ObservableObject {
     
@@ -15,7 +20,7 @@ class GameScreenViewModel: ObservableObject {
     @Published var punchStrength: Double = 0
     @Published var cooldownProgress: Double = 0.0
     @Published var isInCooldown = false
-
+    @Published var gameOver: Bool = false
     
     // MARK: - Private Properties
     private let motionManager = CMMotionManager()
@@ -24,7 +29,12 @@ class GameScreenViewModel: ObservableObject {
     private let punchCooldown: TimeInterval = 3
     private var cancellables = Set<AnyCancellable>()
     private var cooldownTimer: Timer?
-
+    
+    
+    // MARK: - TimeOut Properties
+    private let timeOutInterval: TimeInterval = 3
+    private var timeOutTimer: Timer?
+    @Published var timeOutProgress: Double = 3
     
     private var mpcManager: MPCManager
     
@@ -72,6 +82,7 @@ class GameScreenViewModel: ObservableObject {
     
     func updateMPCManager(_ newMPCManager: MPCManager) {
         self.mpcManager = newMPCManager
+        self.setupListenerToEnemyPunch()
     }
     
     // MARK: - Private Methods
@@ -84,6 +95,10 @@ class GameScreenViewModel: ObservableObject {
     }
     
     private func processAccelerometerData(_ data: CMAccelerometerData) {
+        guard !gameOver else {
+            print("Game over, won't process accelerometer data")
+            return
+        }
         let acceleration = data.acceleration
         
         // Update published acceleration data
@@ -110,6 +125,7 @@ class GameScreenViewModel: ObservableObject {
         // Update punch data
         punchDirection = direction
         mpcManager.send(punchDirection: direction)
+        stopTimeOutTimer()
         punchStrength = strength
         lastPunchTime = currentTime
         startCooldownTimer()
@@ -208,7 +224,7 @@ class GameScreenViewModel: ObservableObject {
             if remainingCooldown <= 0 {
                 self.stopCooldownTimer()
             } else {
-                self.cooldownProgress = remainingCooldown / self.punchCooldown
+                self.cooldownProgress = (remainingCooldown / self.punchCooldown) * 3
             }
         }
     }
@@ -232,4 +248,64 @@ class GameScreenViewModel: ObservableObject {
         Current Punch Strength: \(String(format: "%.2f", punchStrength))
         """
     }
+}
+
+
+// MARK: Game Logics
+extension GameScreenViewModel {
+    
+    func setupListenerToEnemyPunch() {
+        mpcManager.$enemyPunchDirection
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.startTimeOutTimer()
+                print("Start timeout.")
+            }
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - TimeOut methods
+    private func startTimeOutTimer() {
+        timeOutProgress = 3.0
+        
+        timeOutTimer?.invalidate()
+        timeOutTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            self.timeOutProgress -= 1
+            
+            if self.timeOutProgress <= 0 {
+                self.stopTimeOutTimer()
+                self.gameOver = true
+            } else {
+                self.gameOver = self.getGameResult()
+                print(self.gameOver)
+            }
+        }
+    }
+    
+    private func stopTimeOutTimer() {
+        timeOutTimer?.invalidate()
+        timeOutTimer = nil
+        timeOutProgress = 3.0
+    }
+
+    
+    private func getGameResult() -> Bool {
+        // Ensure both punch directions exist
+        guard let enemyPunch = mpcManager.enemyPunchDirection,
+              let myPunch = punchDirection else {
+            return false
+        }
+        
+        // Check if punches are in the same direction/placement
+        guard enemyPunch.overlayPlacement == myPunch.overlayPlacement else {
+            return false
+        }
+        
+        // Win if our punch is stronger than enemy's punch
+        return myPunch.strength > enemyPunch.strength
+    }
+    
 }

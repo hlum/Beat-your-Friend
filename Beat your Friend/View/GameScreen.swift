@@ -11,12 +11,9 @@ import CoreMotion
 import Combine
 
 
-
-
 struct GameScreen: View {
     @StateObject private var vm: GameScreenViewModel
     @EnvironmentObject private var mpcManager: MPCManager
-
     
     
     init() {
@@ -27,38 +24,74 @@ struct GameScreen: View {
     }
     
     var body: some View {
-        VStack {
-            Text("\(vm.isMotionActive ? "Active" : "Inactive")")
-            Text("\(vm.punchStrength)")
-            Text("\(vm.getMotionStatus())")
-                .lineLimit(nil)
-            Text("\(vm.punchDirection?.strength ?? 0)")
-                .lineLimit(nil)
+        ZStack {
+            VStack {
+                
+                playerIcon(for: mpcManager.connectedPeers.first?.displayName, isPlayer: false)
+                    .overlay(alignment: mpcManager.enemyPunchDirection?.overlayPlacement ?? .bottom) {
+                        if let enemyPunchDirection = mpcManager.enemyPunchDirection {
+                            punch(to: enemyPunchDirection)
+                        }
+                    }
+                
+                if !vm.gameOver {
+                    timeOutTimer
+                }
+                
+                
+                playerIcon(for: mpcManager.peerID.displayName, isPlayer: true)
+                    .overlay(alignment: vm.punchDirection?.overlayPlacement ?? .bottom) {
+                        if let punchDirection = vm.punchDirection {
+                            punch(to: punchDirection)
+                        }
+                    }
+                    .overlay {
+                        coolDownView
+                    }
 
-            ProgressView(value: vm.cooldownProgress)
-                .progressViewStyle(.linear)
+            }
+            .padding()
+            .onAppear {
+                // Update the ViewModel's MPCManager reference with the correct one from environment
+                vm.updateMPCManager(mpcManager)
+                vm.startAccelerometer()
+            }
             
             
-            playerIcon(for: mpcManager.connectedPeers.first?.displayName, isPlayer: false)
-                .overlay(alignment: mpcManager.enemyPunchDirection?.overlayPlacement ?? .bottom) {
-                    if let enemyPunchDirection = mpcManager.enemyPunchDirection {
-                        punch(to: enemyPunchDirection)
-                    }
-                }
-            
-            
-            playerIcon(for: mpcManager.peerID.displayName, isPlayer: true)
-                .overlay(alignment: vm.punchDirection?.overlayPlacement ?? .bottom) {
-                    if let punchDirection = vm.punchDirection {
-                        punch(to: punchDirection)
-                    }
-                }
+            if vm.gameOver {
+                Text("Game Over")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.red)
+            }
         }
-        .padding()
-        .onAppear {
-            // Update the ViewModel's MPCManager reference with the correct one from environment
-            vm.updateMPCManager(mpcManager)
-            vm.startAccelerometer()
+    }
+    
+    private var timeOutTimer: some View {
+        HStack {
+            Image(systemName: "timer")
+            Text(String(format: "%.0f", vm.timeOutProgress))
+        }
+        .font(.system(size: 40))
+        .foregroundStyle(.red)
+    }
+    
+    @ViewBuilder
+    private var coolDownView: some View {
+        if vm.isInCooldown {
+            ZStack {
+                Color.gray.opacity(0.7)
+                VStack {
+                    ProgressView()
+                    HStack {
+                        Text(String(format: "%.0f", vm.cooldownProgress) + "秒")
+                            .font(.system(size: 100))
+                            .bold()
+                            .foregroundStyle(.red)
+                    }
+                }
+                .transition(.scale)
+            }
+            .cornerRadius(500)
         }
     }
     
@@ -66,14 +99,13 @@ struct GameScreen: View {
         VStack {
             Text(name ?? "Unknown")
                 .font(.headline)
-
+            
             Image(isPlayer ? .player : .enemy)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 60, height: 60)
         }
-        .frame(width: 270, height: 270)
-        
+        .frame(width: 270, height: 300)
     }
     
     private func punch(to direction: PunchDirection) -> some View {
@@ -83,7 +115,7 @@ struct GameScreen: View {
                 .scaledToFit()
                 .frame(width: 50, height: 50)
                 .rotationEffect(.degrees(direction.degree))
-            Text(String(format: "%.1f", direction.strength))
+            Text(String(format: "%.0f", direction.strength))
                 .font(.title)
                 .bold()
                 .foregroundColor(.red)

@@ -31,8 +31,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     @Published var showInvitationPrompt: Bool = false
     @Published var pendingInvitation: (peerID: MCPeerID, handler: (Bool, MCSession?) -> Void)?
     
-    @Published var enemyPunchDirection: PunchDirection? = .down(strength: 100)
-    
+    @Published var enemyPunchDirection: PunchDirection? =  .right(strength: 100)
     
     override init() {
         super.init()
@@ -148,6 +147,7 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
 
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         DispatchQueue.main.async {
+            print("Got data from \(peerID.displayName)")
             if let punch = self.decodePunchDirection(from: data) {
                 self.enemyPunchDirection = punch
             }
