@@ -5,11 +5,15 @@
 //  Created by cmStudent on 2025/07/15.
 //
 
+import SwiftUI
+import CoreMotion
+import Combine
+
 
 class GameScreenViewModel: ObservableObject {
     
     // MARK: - Published Properties
-    @Published var punchDirection: PunchDirection?
+    @Published var punchDirection: PunchDirection? = .up(strength: 100)
     @Published var isMotionActive = false
     @Published var accelerationData: (x: Double, y: Double, z: Double) = (0, 0, 0)
     @Published var punchStrength: Double = 0
@@ -25,7 +29,9 @@ class GameScreenViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var cooldownTimer: Timer?
 
-    
+    @Published var playerHealth: Double = 100
+    @Published var enemyHealth: Double = 100
+
     private var mpcManager: MPCManager
     
     // MARK: - Initialization

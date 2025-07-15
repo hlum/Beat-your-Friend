@@ -11,13 +11,11 @@ import CoreMotion
 import Combine
 
 
-
-
 struct GameScreen: View {
     @StateObject private var vm: GameScreenViewModel
     @EnvironmentObject private var mpcManager: MPCManager
-
-    
+    @State private var gameMessage: String = "Ready to Fight!"
+    @State private var showGameMessage: Bool = false
     
     init() {
         // Create a temporary MPCManager for initialization
@@ -27,66 +25,275 @@ struct GameScreen: View {
     }
     
     var body: some View {
-        VStack {
-            Text("\(vm.isMotionActive ? "Active" : "Inactive")")
-            Text("\(vm.punchStrength)")
-            Text("\(vm.getMotionStatus())")
-                .lineLimit(nil)
-            Text("\(vm.punchDirection?.strength ?? 0)")
-                .lineLimit(nil)
-
-            ProgressView(value: vm.cooldownProgress)
-                .progressViewStyle(.linear)
-            
-            
-            playerIcon(for: mpcManager.connectedPeers.first?.displayName, isPlayer: false)
-                .overlay(alignment: mpcManager.enemyPunchDirection?.overlayPlacement ?? .bottom) {
+        GeometryReader { geometry in
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [.black.opacity(0.9), .red.opacity(0.3), .black.opacity(0.9)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Top Status Bar
+                    statusBar
+                        .padding(.top, 10)
+                    
+                    // Enemy Section
+                    VStack(spacing: 10) {
+                        // Enemy Health Bar
+                        healthBar(health: vm.enemyHealth, isPlayer: false)
+                        
+                        // Enemy Player
+                        playerIcon(for: mpcManager.connectedPeers.first?.displayName, isPlayer: false)
+                    }
+                    
+                    Spacer()
+                    
                     if let enemyPunchDirection = mpcManager.enemyPunchDirection {
                         punch(to: enemyPunchDirection)
                     }
-                }
-            
-            
-            playerIcon(for: mpcManager.peerID.displayName, isPlayer: true)
-                .overlay(alignment: vm.punchDirection?.overlayPlacement ?? .bottom) {
-                    if let punchDirection = vm.punchDirection {
-                        punch(to: punchDirection)
+                    
+                    if let playerPunchDirection = vm.punchDirection {
+                        punch(to: playerPunchDirection)
+                    }
+                    
+                    Spacer()
+                    
+                    
+                    // Player Section
+                    VStack(spacing: 10) {
+                        // Player
+                        playerIcon(for: mpcManager.peerID.displayName, isPlayer: true)
+                 
+                        
+                        // Player Health Bar
+                        healthBar(health: vm.playerHealth, isPlayer: true)
+                    }
+                    
+                    // Cooldown Indicator
+                    if vm.isInCooldown {
+                        cooldownIndicator
+                            .padding(.bottom, 20)
                     }
                 }
+                
+                
+                
+                // Game Message
+                if showGameMessage {
+                    Text(gameMessage)
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(15)
+                        .transition(.scale.combined(with: .opacity))
+                }
+                
+            } // end of ZStack
         }
-        .padding()
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
         .onAppear {
             // Update the ViewModel's MPCManager reference with the correct one from environment
             vm.updateMPCManager(mpcManager)
             vm.startAccelerometer()
+            showWelcomeMessage()
+        }
+        .onChange(of: vm.punchDirection) { newValue in
+            if newValue != nil {
+                showPunchMessage()
+            }
+        }
+        .onChange(of: mpcManager.enemyPunchDirection) { newValue in
+            if newValue != nil {
+                showEnemyPunchMessage()
+            }
         }
     }
     
     private func playerIcon(for name: String?, isPlayer: Bool) -> some View {
-        VStack {
+        VStack(spacing: 10) {
             Text(name ?? "Unknown")
                 .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(20)
 
-            Image(isPlayer ? .player : .enemy)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 60, height: 60)
+            ZStack {
+                // Glow effect
+                Circle()
+                    .fill(RadialGradient(
+                        gradient: Gradient(colors: [isPlayer ? .blue.opacity(0.6) : .red.opacity(0.6), .clear]),
+                        center: .center,
+                        startRadius: 30,
+                        endRadius: 80
+                    ))
+                    .frame(width: 160, height: 160)
+                
+                // Character background
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 120, height: 120)
+                    .overlay(
+                        Circle()
+                            .stroke(isPlayer ? Color.blue : Color.red, lineWidth: 3)
+                    )
+                
+                // Character image
+                Image(isPlayer ? .player : .enemy)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 80, height: 80)
+                    .clipShape(Circle())
+            }
         }
-        .frame(width: 270, height: 270)
-        
+        .frame(width: 200, height: 200)
     }
     
     private func punch(to direction: PunchDirection) -> some View {
-        VStack {
+        HStack {
             Image(.fist)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 50, height: 50)
                 .rotationEffect(.degrees(direction.degree))
-            Text(String(format: "%.1f", direction.strength))
+            
+            Text(String(format: "%.0f", direction.strength))
                 .font(.title)
                 .bold()
                 .foregroundColor(.red)
+        }
+    }
+    
+    // MARK: - UI Components
+    
+    private var statusBar: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text("Motion: \(vm.isMotionActive ? "Active" : "Inactive")")
+                    .font(.caption)
+                    .foregroundColor(.white)
+                Text("Strength: \(String(format: "%.1f", vm.punchStrength))")
+                    .font(.caption)
+                    .foregroundColor(.white)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing) {
+                Text("Connection")
+                    .font(.caption)
+                    .foregroundColor(.white)
+                Text(mpcManager.connectionState == .connected ? "Connected" : "Disconnected")
+                    .font(.caption)
+                    .foregroundColor(mpcManager.connectionState == .connected ? .green : .red)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private func healthBar(health: Double, isPlayer: Bool) -> some View {
+        VStack(spacing: 5) {
+            Text(isPlayer ? "Your Health" : "Enemy Health")
+                .font(.caption)
+                .foregroundColor(.white)
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 20)
+                        .cornerRadius(10)
+                    
+                    Rectangle()
+                        .fill(LinearGradient(
+                            gradient: Gradient(colors: health > 50 ? [.green, .yellow] : [.yellow, .red]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                        .frame(width: geometry.size.width * (health / 100), height: 20)
+                        .cornerRadius(10)
+                        .animation(.easeInOut(duration: 0.3), value: health)
+                }
+            }
+            .frame(height: 20)
+            
+            Text("\(Int(health))%")
+                .font(.caption)
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal)
+    }
+    
+    private var cooldownIndicator: some View {
+        VStack(spacing: 5) {
+            Text("Cooldown")
+                .font(.caption)
+                .foregroundColor(.white)
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 8)
+                        .cornerRadius(4)
+                    
+                    Rectangle()
+                        .fill(Color.orange)
+                        .frame(width: geometry.size.width * vm.cooldownProgress, height: 8)
+                        .cornerRadius(4)
+                        .animation(.linear(duration: 0.05), value: vm.cooldownProgress)
+                }
+            }
+            .frame(height: 8)
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Game Messages
+    
+    private func showWelcomeMessage() {
+        withAnimation(.easeInOut(duration: 0.5)) {
+            showGameMessage = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                showGameMessage = false
+            }
+        }
+    }
+    
+    private func showPunchMessage() {
+        gameMessage = "You Punched!"
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showGameMessage = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showGameMessage = false
+            }
+        }
+    }
+    
+    private func showEnemyPunchMessage() {
+        gameMessage = "Enemy Punched!"
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showGameMessage = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showGameMessage = false
+            }
         }
     }
 }

@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-enum PunchDirection: Codable {
+enum PunchDirection: Codable, Equatable {
     case up(strength: Double)
     case down(strength: Double)
     case left(strength: Double)
