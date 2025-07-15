@@ -142,8 +142,6 @@ struct HomeScreen: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         showNameInputAlert = true
                     }
-                } else {
-                    mpcManager.setDisplayName(displayName)
                 }
             }
         }

@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct BrowsingView: View {
+    @AppStorage("DisplayName") private var displayName = ""
     @EnvironmentObject var mpcManager: MPCManager
     
     @State private var isSearching: Bool = false
@@ -44,6 +45,7 @@ struct BrowsingView: View {
             .overlay(alignment: .bottomTrailing, content: {
                 Button {
                     isSearching.toggle()
+                    mpcManager.setDisplayName(displayName)
                     mpcManager.startAllServices()
                 } label: {
                     VStack(spacing: 0){

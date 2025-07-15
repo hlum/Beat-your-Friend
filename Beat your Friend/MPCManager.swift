@@ -37,8 +37,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     @Published var showInvitationPrompt: Bool = false
     @Published var pendingInvitation: (peerID: MCPeerID, handler: (Bool, MCSession?) -> Void)?
     
-    @Published var enemyPunchDirection: PunchDirection? = .up(strength: 1000)
-
+    @Published var enemyPunchDirection: PunchDirection? = .down(strength: 100)
+    
     
     override init() {
         super.init()
@@ -46,21 +46,30 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     
     func setDisplayName(_ displayName: String) {
         self.peerID = MCPeerID(displayName: displayName)
+        // Recreate services with the new peerID if they were already set up
+        if session != nil {
+            restartServices()
+        }
     }
     
     private func setupServices() {
+        print("🔧 Setting up MPC services with peerID: \(peerID.displayName)")
+        
         // For session
         session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .optional)
         session.delegate = self
+        print("✅ Session created")
         
         
         // For advertiser
         advertiser = MCNearbyServiceAdvertiser(peer: peerID, discoveryInfo: nil, serviceType: serviceType)
         advertiser.delegate = self
+        print("✅ Advertiser created")
         
         // For Browser
         browser = MCNearbyServiceBrowser(peer: peerID, serviceType: serviceType)
         browser.delegate = self
+        print("✅ Browser created")
     }
         
     func startAllServices() {
@@ -145,9 +154,8 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
 
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         DispatchQueue.main.async {
-            if let message = String(data: data, encoding: .utf8) {
-                print("Received data: \(message)")
-                self.receivedMessages.append("From \(peerID.displayName): \(message)")
+            if let punch = self.decodePunchDirection(from: data) {
+                self.enemyPunchDirection = punch
             }
         }
     }
@@ -209,17 +217,33 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     
     // MARK: - Helper Methods
     func invitePeer(_ peerID: MCPeerID) {
-        print("招待を送信するため、接続中のデバイスと切断する")
-        disconnect()
         print("招待を送信する to \(peerID.displayName)")
         browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
     }
     
-    func send(message: String) {
+    func send(punchDirection: PunchDirection) {
+        print("🔍 Attempting to send punch: \(punchDirection)")
+        print("🔍 Session exists: \(session != nil)")
+        print("🔍 Connected peers count: \(session?.connectedPeers.count ?? 0)")
+        
+        guard self.session != nil else {
+            print("❌ No session found")
+            return
+        }
+        
         if session.connectedPeers.count > 0 {
-            if let data = message.data(using: .utf8) {
-                try? session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            if let data = encodePunchDirection(punchDirection) {
+                do {
+                    try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+                    print("✅ Successfully sent punch data")
+                } catch {
+                    print("❌ Failed to send punch data: \(error)")
+                }
+            } else {
+                print("❌ Failed to encode punch direction")
             }
+        } else {
+            print("❌ No connected peers to send to")
         }
     }
     
@@ -227,5 +251,27 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         session.disconnect()
         connectedPeers.removeAll()
         connectionStatus = "Disconnected"
+    }
+    
+    func encodePunchDirection(_ punchDirection: PunchDirection) -> Data? {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(punchDirection)
+            return data
+        } catch {
+            print("Failed to encode PunchDirection: \(error)")
+            return nil
+        }
+    }
+
+    
+    func decodePunchDirection(from data: Data) -> PunchDirection? {
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(PunchDirection.self, from: data)
+        } catch {
+            print("Failed to decode: \(error)")
+            return nil
+        }
     }
 }
