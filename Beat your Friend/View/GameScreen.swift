@@ -26,15 +26,7 @@ struct GameScreen: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Background gradient
-                LinearGradient(
-                    gradient: Gradient(colors: [.black.opacity(0.9), .red.opacity(0.3), .black.opacity(0.9)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
+            
                 VStack(spacing: 0) {
                     // Top Status Bar
                     statusBar
@@ -43,11 +35,12 @@ struct GameScreen: View {
                     // Enemy Section
                     VStack(spacing: 10) {
                         // Enemy Health Bar
-                        healthBar(health: vm.enemyHealth, isPlayer: false)
+                        healthBar(health: mpcManager.enemyHealth, isPlayer: false)
                         
                         // Enemy Player
                         playerIcon(for: mpcManager.connectedPeers.first?.displayName, isPlayer: false)
                     }
+                    .padding(.leading, 60)
                     
                     Spacer()
                     
@@ -63,13 +56,23 @@ struct GameScreen: View {
                     
                     
                     // Player Section
-                    VStack(spacing: 10) {
-                        // Player
-                        playerIcon(for: mpcManager.peerID.displayName, isPlayer: true)
-                 
+                    HStack {
+                        VStack(spacing: 10) {
+                            // Player
+                            playerIcon(for: mpcManager.peerID.displayName, isPlayer: true)
+                     
+                            
+                            // Player Health Bar
+                            healthBar(health: vm.playerHealth, isPlayer: true)
+                        }
                         
-                        // Player Health Bar
-                        healthBar(health: vm.playerHealth, isPlayer: true)
+                        Text(String(format: "%.0f", vm.timeOutProgress))
+                            .font(.title)
+                            .bold()
+                            .foregroundStyle(.red)
+                            .padding(.trailing, 60)
+                        if vm.isInTimeout {
+                        }
                     }
                     
                     // Cooldown Indicator
@@ -77,23 +80,30 @@ struct GameScreen: View {
                         cooldownIndicator
                             .padding(.bottom, 20)
                     }
+                    
+                    Spacer()
                 }
-                
-                
-                
-                // Game Message
-                if showGameMessage {
-                    Text(gameMessage)
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(15)
-                        .transition(.scale.combined(with: .opacity))
+                .background(
+                    // Background gradient
+                    LinearGradient(
+                        gradient: Gradient(colors: [.black.opacity(0.9), .red.opacity(0.3), .black.opacity(0.9)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay {
+                    // Game Message
+                    if showGameMessage {
+                        Text(gameMessage)
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.black.opacity(0.7))
+                            .cornerRadius(15)
+                            .transition(.scale.combined(with: .opacity))
+                    }
                 }
-                
-            } // end of ZStack
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(true)
@@ -101,6 +111,8 @@ struct GameScreen: View {
             // Update the ViewModel's MPCManager reference with the correct one from environment
             vm.updateMPCManager(mpcManager)
             vm.startAccelerometer()
+            vm.setupListenerToEnemyPunch()
+            vm.setupListenerToPlayerHealth()
             showWelcomeMessage()
         }
         .onChange(of: vm.punchDirection) { newValue in
@@ -135,12 +147,12 @@ struct GameScreen: View {
                         startRadius: 30,
                         endRadius: 80
                     ))
-                    .frame(width: 160, height: 160)
+                    .frame(width: 100, height: 100)
                 
                 // Character background
                 Circle()
                     .fill(Color.white.opacity(0.1))
-                    .frame(width: 120, height: 120)
+                    .frame(width: 100, height: 100)
                     .overlay(
                         Circle()
                             .stroke(isPlayer ? Color.blue : Color.red, lineWidth: 3)
@@ -150,11 +162,11 @@ struct GameScreen: View {
                 Image(isPlayer ? .player : .enemy)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 80, height: 80)
+                    .frame(width: 50, height: 50)
                     .clipShape(Circle())
             }
         }
-        .frame(width: 200, height: 200)
+        .frame(width: 200, height: 150)
     }
     
     private func punch(to direction: PunchDirection) -> some View {
@@ -162,11 +174,11 @@ struct GameScreen: View {
             Image(.fist)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 50, height: 50)
+                .frame(width: 30, height: 30)
                 .rotationEffect(.degrees(direction.degree))
             
             Text(String(format: "%.0f", direction.strength))
-                .font(.title)
+                .font(.title2)
                 .bold()
                 .foregroundColor(.red)
         }

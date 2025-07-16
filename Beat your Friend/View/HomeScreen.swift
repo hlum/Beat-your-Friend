@@ -14,6 +14,8 @@ struct HomeScreen: View {
     @State private var showNameInputAlert: Bool = false
     @State private var tempName: String = ""
     
+    @State private var showGameScreen: Bool = false
+    
     var body: some View {
        NavigationView {
             ZStack {
@@ -86,9 +88,8 @@ struct HomeScreen: View {
                             }
                         } else {
                             
-                            NavigationLink {
-                                GameScreen()
-                                    .environmentObject(mpcManager)
+                            Button {
+                                showGameScreen.toggle()
                             } label: {
                                 HStack {
                                     Image(systemName: "play.fill")
@@ -136,6 +137,10 @@ struct HomeScreen: View {
                     nameInputView
                 }
             }
+            .fullScreenCover(isPresented: $showGameScreen, content: {
+                GameScreen()
+                    .environmentObject(mpcManager)
+            })
             .navigationTitle(mpcManager.connectionStatus.description)
             .onAppear {
                 if displayName.isEmpty {

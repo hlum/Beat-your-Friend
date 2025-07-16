@@ -13,24 +13,28 @@ import Combine
 class GameScreenViewModel: ObservableObject {
     
     // MARK: - Published Properties
-    @Published var punchDirection: PunchDirection? = .up(strength: 100)
+    @Published var punchDirection: PunchDirection?
     @Published var isMotionActive = false
     @Published var accelerationData: (x: Double, y: Double, z: Double) = (0, 0, 0)
     @Published var punchStrength: Double = 0
     @Published var cooldownProgress: Double = 0.0
     @Published var isInCooldown = false
+    
+    @Published var isInTimeout = false
+    @Published var timeOutProgress: Double = 10
+    private let timeOutDuration: TimeInterval = 10
+    private var timeOutTimer: Timer?
 
     
     // MARK: - Private Properties
     private let motionManager = CMMotionManager()
-    private var punchThreshold: Double = 2.0
+    private var punchThreshold: Double = 5.0
     private var lastPunchTime: Date = Date()
     private let punchCooldown: TimeInterval = 3
     private var cancellables = Set<AnyCancellable>()
     private var cooldownTimer: Timer?
 
     @Published var playerHealth: Double = 100
-    @Published var enemyHealth: Double = 100
 
     private var mpcManager: MPCManager
     
@@ -116,13 +120,55 @@ class GameScreenViewModel: ObservableObject {
         // Update punch data
         punchDirection = direction
         mpcManager.send(punchDirection: direction)
+        
+        
+        handlePunchBack(punch: direction)
+        
         punchStrength = strength
         lastPunchTime = currentTime
         startCooldownTimer()
-//        // Auto-reset after animation time
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
-//            self?.resetPunchDirection()
-//        }
+    }
+    
+    private func handlePunchBack(punch: PunchDirection) {
+        guard let enemyPunchDirection = mpcManager.enemyPunchDirection else {
+            print("No enemy punch direction available. No back punch.")
+            return
+        }
+        
+        let oppositePunch = getOppositeDirectionPunch(punch: enemyPunchDirection)
+        
+        guard oppositePunch.overlayPlacement == punch.overlayPlacement else {
+            print("The direction of the punch is not the opposite as the direction of the enemy punch. No back punch. Player health will decrease.")
+            playerHealth -= enemyPunchDirection.strength / 100
+            return
+        }
+        
+        print("Player punched back ...")
+        stopTimeOutTimer()
+        let powerDiff = getDiffBetweenEnemyAndPlayerPunch(playerPunch: punch, enemyPunch: enemyPunchDirection)
+        
+        if punch.strength > enemyPunchDirection.strength {
+            // TODO: - Player punch back has more power so the opponent helth should be decreased.
+            print("Player punch back has more power so the opponent helth should be decreased.")
+            mpcManager.enemyHealth -= Double(powerDiff / 100)
+        } else {
+            print("Player punch doesn't have enough power decrease the player health.")
+            playerHealth -= Double(powerDiff / 100)
+        }
+        
+    }
+    
+    private func getOppositeDirectionPunch(punch: PunchDirection) -> PunchDirection {
+        switch punch {
+        case .up:
+            return .down(strength: punch.strength)
+        case .down:
+            return .up(strength: punch.strength)
+        case .left:
+            return .right(strength: punch.strength)
+        case .right:
+            return .left(strength: punch.strength)
+        }
     }
     
     private func determinePunchDirection(from acceleration: CMAcceleration) -> PunchDirection {
@@ -197,6 +243,55 @@ class GameScreenViewModel: ObservableObject {
         startAccelerometer()
     }
     
+    // MARK: - Punch TimeOut
+    
+    
+    private func startTimeOutTimer() {
+        stopTimeOutTimer()
+        
+        timeOutProgress = timeOutDuration
+        
+        timeOutTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else {return}
+            self.timeOutProgress -= 1
+            
+            
+            if self.timeOutProgress <= 0 {
+                self.handleTimeOut()
+            }
+        }
+    }
+    
+    private func stopTimeOutTimer() {
+        timeOutTimer?.invalidate()
+        timeOutTimer = nil
+        timeOutProgress = timeOutDuration
+    }
+    
+    
+    private func handleTimeOut() {
+        stopTimeOutTimer()
+        
+        if let enemyPunchDirection = mpcManager.enemyPunchDirection {
+            print("Timeout! Enemy punch strength: \(enemyPunchDirection.strength)")
+            playerHealth -= enemyPunchDirection.strength / 100
+            print("Player health after punch: \(playerHealth)")
+        }
+    }
+    
+    private func getDiffBetweenEnemyAndPlayerPunch(playerPunch: PunchDirection, enemyPunch: PunchDirection) -> Int {
+        guard let enemyPunchDirection = mpcManager.enemyPunchDirection else {
+            return 0
+        }
+        
+        guard let playerPunchDirection = punchDirection else {
+            return 0
+        }
+        let result = Int(abs(enemyPunchDirection.strength - playerPunchDirection.strength) + abs(enemyPunchDirection.strength - playerPunchDirection.strength))
+        print("Punch power diff: \(result)")
+        return result
+    }
+    
     // MARK: - Cooldown Methods
     
     private func startCooldownTimer() {
@@ -238,4 +333,29 @@ class GameScreenViewModel: ObservableObject {
         Current Punch Strength: \(String(format: "%.2f", punchStrength))
         """
     }
+}
+
+// MARK: - Listeners
+extension GameScreenViewModel {
+    func setupListenerToEnemyPunch() {
+        mpcManager.$enemyPunchDirection
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                print("Enemy punch detected. start the timeout timer")
+                self?.startTimeOutTimer()
+            }
+            .store(in: &cancellables)
+    }
+    
+    func setupListenerToPlayerHealth() {
+        $playerHealth
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] health in
+                print("Player health changed. Send to the other player.")
+                self?.mpcManager.send(playerHealth: health)
+            }
+            .store(in: &cancellables)
+    }
+
 }

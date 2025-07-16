@@ -10,6 +10,18 @@ import SwiftUI
 import MultipeerConnectivity
 
 
+enum MessageType: String, Codable {
+    case punch
+    case health
+    case score
+}
+
+struct GameMessage: Codable {
+    let type: MessageType
+    let payload: Data
+}
+
+
 // MARK: - Updated MPCManager with ObservableObject properties
 class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate, MCNearbyServiceBrowserDelegate, ObservableObject {
     let serviceType = "beatyourfriend"  // Changed: lowercase, no special characters
@@ -31,8 +43,9 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
     @Published var showInvitationPrompt: Bool = false
     @Published var pendingInvitation: (peerID: MCPeerID, handler: (Bool, MCSession?) -> Void)?
     
-    @Published var enemyPunchDirection: PunchDirection? = .down(strength: 100)
-    
+    @Published var enemyPunchDirection: PunchDirection?
+    @Published var enemyHealth: Double = 100
+
     
     override init() {
         super.init()
@@ -148,8 +161,22 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
 
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         DispatchQueue.main.async {
-            if let punch = self.decodePunchDirection(from: data) {
-                self.enemyPunchDirection = punch
+
+            guard let gameMessage = self.decodeGameMessage(from: data) else {
+                print("Fail to decode game message")
+                return
+            }
+            
+            switch gameMessage.type {
+            case .punch:
+                self.enemyPunchDirection = self.decodePunchDirection(from: gameMessage.payload)
+            case .health:
+                let health = gameMessage.payload.withUnsafeBytes { $0.load(as: Double.self) }
+                self.enemyHealth = health
+                print("Enemy health updated: \(health)")
+            case .score:
+                // TODO: -
+                return
             }
         }
     }
@@ -226,8 +253,15 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         }
         
         if session.connectedPeers.count > 0 {
-            if let data = encodePunchDirection(punchDirection) {
+            if let punchData = encodePunchDirection(punchDirection) {
                 do {
+                    let gameMessage = GameMessage(type: .punch, payload: punchData)
+                    
+                    guard let data = encodeGameMessage(gameMessage) else {
+                        print("Failed to encode game message")
+                        return
+                    }
+                    
                     try session.send(data, toPeers: session.connectedPeers, with: .reliable)
                     print("✅ Successfully sent punch data")
                 } catch {
@@ -241,10 +275,58 @@ class MPCManager: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate
         }
     }
     
+    func send(playerHealth: Double) {
+        print("Player health sent")
+        guard self.session != nil else {
+            print("No session found")
+            return
+        }
+        
+            
+        guard session.connectedPeers.count > 0 else {
+            print("no connected peers to send to")
+            return
+        }
+        
+        do {
+            let healthData = withUnsafeBytes(of: playerHealth) { Data($0) }
+            let gameMessage = GameMessage(type: .health, payload: healthData)
+            guard let data = try encodeGameMessage(gameMessage) else {
+                print("Error encoding game message")
+                return
+            }
+            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+        } catch {
+            print("Error sending player health: \(error.localizedDescription)")
+        }
+    }
+    
     func disconnect() {
         session.disconnect()
         connectedPeers.removeAll()
         connectionStatus = "Disconnected"
+    }
+    
+    func encodeGameMessage(_ message: GameMessage) -> Data? {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(message)
+            return data
+        } catch {
+            print("Failed to encode GameMessage: \(error)")
+            return nil
+        }
+    }
+    
+    
+    func decodeGameMessage(from data: Data) -> GameMessage? {
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(GameMessage.self, from: data)
+        } catch {
+            print("Failed to decode: \(error)")
+            return nil
+        }
     }
     
     func encodePunchDirection(_ punchDirection: PunchDirection) -> Data? {
